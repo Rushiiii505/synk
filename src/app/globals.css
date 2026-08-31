@@ -1,26 +1,131 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg-main: #f8f9fd;
+    --bg-card: #ffffff;
+    --border-subtle: #edf0f7;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --accent-lime: #84cc16;
+    --accent-purple: #7c3aed;
+    --accent-blue: #2563eb;
+    --accent-sky: #0ea5e9;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #f8f9fd;
+  color: #0f172a;
+  font-family: var(--font-plus-jakarta), var(--font-inter), -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Reference-Style Rounded Cards with Soft Shadows */
+.ref-card {
+  background: #ffffff;
+  border-radius: 1.5rem;
+  border: 1px solid #f1f3f9;
+  box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.04), 0 4px 12px -2px rgba(15, 23, 42, 0.02);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ref-card:hover {
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.08);
+}
+
+/* Pastel Tinted Feature Containers (As in reference image) */
+.card-pastel-purple {
+  background: #f5f3ff;
+  border: 1px solid #ede9fe;
+}
+
+.card-pastel-lime {
+  background: #f7fee7;
+  border: 1px solid #ecfccb;
+}
+
+.card-pastel-blue {
+  background: #f0f9ff;
+  border: 1px solid #e0f2fe;
+}
+
+.card-pastel-amber {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+}
+
+.card-pastel-rose {
+  background: #fff1f2;
+  border: 1px solid #ffe4e6;
+}
+
+/* Iconic Vibrant Cards from Mockup */
+.card-vibrant-lime {
+  background: linear-gradient(135deg, #bef264 0%, #a3e635 60%, #84cc16 100%);
+  color: #0f172a;
+  box-shadow: 0 16px 32px -8px rgba(132, 204, 22, 0.35);
+}
+
+.card-vibrant-purple {
+  background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 50%, #7c3aed 100%);
+  color: #ffffff;
+  box-shadow: 0 16px 32px -8px rgba(124, 58, 237, 0.35);
+}
+
+.card-dark-navy {
+  background: #181938;
+  color: #ffffff;
+  box-shadow: 0 20px 40px -10px rgba(24, 25, 56, 0.3);
+}
+
+/* Pill Shapes */
+.btn-pill {
+  border-radius: 9999px;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-pill:active {
+  transform: scale(0.98);
+}
+
+/* Clean Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* Pulse animation for presence */
+@keyframes presencePulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+.presence-pulse {
+  animation: presencePulse 2s infinite cubic-bezier(0.66, 0, 0, 1);
 }
