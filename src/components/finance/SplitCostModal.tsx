@@ -5,8 +5,9 @@ import { Expense, SplitShare } from '@/types';
 import { Modal } from '@/components/ui/Modal';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useAuth } from '@/context/AuthContext';
-import { Calculator, Check, Users, DollarSign } from 'lucide-react';
+import { Calculator, Check, Users } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 interface SplitCostModalProps {
   expense: Expense | null;
@@ -203,11 +204,7 @@ export function SplitCostModal({ expense, isOpen, onClose }: SplitCostModalProps
                     onChange={() => {}}
                     className="w-4 h-4 rounded text-lime-600 focus:ring-0 pointer-events-none"
                   />
-                  <img
-                    src={user.avatar}
-                    alt={user.name}
-                    className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200"
-                  />
+                  <UserAvatar name={user.name} email={user.email} size="sm" />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-bold text-slate-900 truncate">
@@ -219,7 +216,7 @@ export function SplitCostModal({ expense, isOpen, onClose }: SplitCostModalProps
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-400">{user.email}</span>
+                    <span className="text-[10px] text-slate-400 truncate block">{user.email}</span>
                   </div>
                 </div>
 
@@ -228,6 +225,8 @@ export function SplitCostModal({ expense, isOpen, onClose }: SplitCostModalProps
                     {splitMethod === 'custom' ? (
                       <input
                         type="number"
+                        step="any"
+                        min="0"
                         value={customShares[user.id] || ''}
                         onChange={(e) =>
                           setCustomShares({
@@ -235,7 +234,7 @@ export function SplitCostModal({ expense, isOpen, onClose }: SplitCostModalProps
                             [user.id]: parseFloat(e.target.value) || 0,
                           })
                         }
-                        className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 text-right focus:outline-none"
+                        className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 text-right focus:outline-none focus:bg-white focus:border-slate-900 shadow-xs"
                       />
                     ) : (
                       <span className="text-xs font-mono font-bold text-slate-900">

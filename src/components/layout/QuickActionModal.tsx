@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
   Image as ImageIcon,
   X,
+  Plus,
 } from 'lucide-react';
 
 export function QuickActionModal() {
@@ -80,22 +81,23 @@ export function QuickActionModal() {
     if (!taskTitle.trim()) return;
 
     const list = trelloLists.find((l) => l.id === taskListId) || trelloLists[0];
+    const parsedBudget = parseFloat(taskBudget);
 
     addTask({
       title: taskTitle.trim(),
       description: taskDesc.trim(),
       notepadNotes: taskDesc.trim(),
-      listId: list.id,
-      status: list.title,
+      listId: list?.id || 'list_backlog',
+      status: list?.title || 'In Progress',
       priority: 'High',
       colorLabel: taskColor,
-      budgetAmount: parseFloat(taskBudget) || undefined,
+      budgetAmount: isNaN(parsedBudget) ? undefined : parsedBudget,
       imageUrl: taskImage || undefined,
       assignees: currentUser ? [currentUser] : [],
-      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-      tags: ['Trello', 'Deliverable'],
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      tags: ['Sprint'],
       subtasks: [
-        { id: `st_${Date.now()}_1`, title: 'Review deliverable requirements', completed: false },
+        { id: `st_${Date.now()}_1`, title: 'Review sprint requirements', completed: false },
         { id: `st_${Date.now()}_2`, title: 'Ship & verify with team', completed: false },
       ],
     });
@@ -113,11 +115,11 @@ export function QuickActionModal() {
 
     addStickyNote({
       title: noteTitle.trim(),
-      content: noteContent.trim() || 'New collaborative memo notes...',
+      content: noteContent.trim() || 'Click to write notes or sprint action items...',
       color: noteColor,
       isPinned: false,
-      imageUrl: noteImage || undefined,
       author: currentUser || { id: 'u_anon', name: 'Member', email: 'user@synk.app', avatar: '', status: 'online', color: '#84cc16' },
+      imageUrl: noteImage || undefined,
       tags: ['Memo'],
     });
 
@@ -131,12 +133,15 @@ export function QuickActionModal() {
     e.preventDefault();
     if (!expTitle.trim() || !expAmount) return;
 
+    const parsedAmount = parseFloat(expAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+
     addExpense({
-      type: expType,
       title: expTitle.trim(),
-      amount: parseFloat(expAmount) || 0,
+      amount: parsedAmount,
+      type: expType,
+      category: expType === 'IN' ? 'Income / Funding' : expCategory,
       currency: 'INR',
-      category: expCategory,
       date: new Date().toISOString(),
       paidBy: currentUser || { id: 'u_anon', name: 'Member', email: 'user@synk.app', avatar: '', status: 'online', color: '#84cc16' },
       paymentMethod: expMethod,
@@ -150,87 +155,99 @@ export function QuickActionModal() {
     closeQuickAction();
   };
 
+  const colorPills: Record<CardColorLabel, string> = {
+    lime: 'bg-lime-400',
+    purple: 'bg-purple-400',
+    blue: 'bg-sky-400',
+    amber: 'bg-amber-400',
+    rose: 'bg-rose-400',
+    slate: 'bg-slate-400',
+  };
+
   return (
     <Modal
       isOpen={isQuickActionOpen}
       onClose={closeQuickAction}
       title={
         <div className="flex items-center gap-2">
-          <span className="text-xl">⚡</span>
-          <span className="text-base font-extrabold text-slate-900">Quick Workspace Action</span>
+          <div className="w-7 h-7 rounded-xl bg-lime-100 text-lime-800 flex items-center justify-center font-bold text-xs shadow-xs">
+            ⚡
+          </div>
+          <span className="text-sm sm:text-base font-black text-slate-900">Quick Workspace Action</span>
         </div>
       }
-      description="Create a Trello Card, Team Sticky Memo, or Log Money IN/OUT in seconds."
+      description="Instantly create a Trello Sprint Card, Team Sticky Memo, or Log Money IN/OUT in ₹."
       maxWidth="md"
     >
       {/* Type Switcher Pills */}
-      <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-full mb-5">
+      <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200/80 mb-4 gap-1">
         <button
           type="button"
           onClick={() => setActiveType('task')}
-          className={`flex-1 py-1.5 rounded-full text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2 px-1 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeType === 'task'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-white text-slate-950 shadow-sm font-black'
+              : 'text-slate-500 hover:text-slate-900'
           }`}
         >
           <span>📋</span>
-          <span>Trello Card</span>
+          <span className="truncate">Trello Card</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveType('note')}
-          className={`flex-1 py-1.5 rounded-full text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2 px-1 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeType === 'note'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-white text-slate-950 shadow-sm font-black'
+              : 'text-slate-500 hover:text-slate-900'
           }`}
         >
           <span>📝</span>
-          <span>Sticky Memo</span>
+          <span className="truncate">Sticky Memo</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveType('expense')}
-          className={`flex-1 py-1.5 rounded-full text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2 px-1 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeType === 'expense'
-              ? 'bg-slate-950 text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-white text-slate-950 shadow-sm font-black'
+              : 'text-slate-500 hover:text-slate-900'
           }`}
         >
           <span>💳</span>
-          <span>Cashflow (IN/OUT)</span>
+          <span className="truncate">Cashflow (₹)</span>
         </button>
       </div>
 
-      {/* Task / Card Form */}
+      {/* 1. Task / Trello Card Form */}
       {activeType === 'task' && (
-        <form onSubmit={handleCreateTask} className="space-y-4">
+        <form onSubmit={handleCreateTask} className="space-y-3.5">
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Card Title
+            <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+              Card Title / Sprint Deliverable
             </label>
             <input
               type="text"
               required
+              autoFocus
               placeholder="e.g. Integrate UPI Payouts and Split Engine"
               value={taskTitle}
               onChange={(e) => setTaskTitle(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-indigo-500"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-900 transition-all shadow-xs"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
-                Trello List
+              <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+                Sprint Column
               </label>
               <select
-                value={taskListId}
+                value={taskListId || trelloLists[0]?.id}
                 onChange={(e) => setTaskListId(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none"
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:bg-white focus:border-slate-900 cursor-pointer shadow-xs"
               >
                 {trelloLists.map((l) => (
                   <option key={l.id} value={l.id}>
@@ -241,252 +258,288 @@ export function QuickActionModal() {
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
-                Budget / Spend (₹)
+              <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+                Task Budget Limit (₹)
               </label>
               <div className="relative">
-                <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-400">₹</span>
+                <span className="absolute left-3 top-2.5 text-xs font-bold font-mono text-slate-400">₹</span>
                 <input
                   type="number"
-                  placeholder="25000"
+                  step="any"
+                  min="0"
+                  placeholder="e.g. 25000"
                   value={taskBudget}
                   onChange={(e) => setTaskBudget(e.target.value)}
-                  className="w-full pl-6 pr-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none"
+                  className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-900 transition-all shadow-xs"
                 />
               </div>
             </div>
           </div>
 
-          {/* Image Upload for Task */}
-          <div>
-            <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
-              Attach Cover Image / Wireframe
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={(e) => handleImagePick(e, 'task')}
-            />
-            {taskImage ? (
-              <div className="relative rounded-xl overflow-hidden border border-slate-200 h-24">
-                <img src={taskImage} alt="Task Cover" className="w-full h-full object-cover" />
+          {/* Color Label & Image Upload */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+                Color Tag
+              </label>
+              <div className="flex items-center gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-200">
+                {(['lime', 'purple', 'blue', 'amber', 'rose', 'slate'] as CardColorLabel[]).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setTaskColor(c)}
+                    className={`w-5 h-5 rounded-full ${colorPills[c]} transition-transform cursor-pointer ${
+                      taskColor === c ? 'ring-2 ring-slate-950 scale-110 shadow-xs' : 'opacity-60 hover:opacity-100'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+                Cover Image
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={(e) => handleImagePick(e, 'task')}
+              />
+              {taskImage ? (
+                <div className="relative rounded-xl overflow-hidden border border-slate-200 h-10 flex items-center justify-between p-1 bg-slate-50">
+                  <img src={taskImage} alt="Task Cover" className="w-12 h-full object-cover rounded-lg" />
+                  <span className="text-[10px] font-bold text-slate-600">Attached</span>
+                  <button
+                    type="button"
+                    onClick={() => setTaskImage('')}
+                    className="p-1 bg-rose-100 text-rose-700 rounded-lg hover:bg-rose-200 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => setTaskImage('')}
-                  className="absolute top-1 right-1 p-1 bg-black/70 text-white rounded-full"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-300 text-xs font-bold text-slate-600 hover:border-slate-400 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <X className="w-3 h-3" />
+                  <Upload className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Upload Image</span>
                 </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-xs font-bold text-slate-600 hover:border-slate-400 flex items-center justify-center gap-1.5 transition-colors"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Upload Image</span>
-              </button>
-            )}
+              )}
+            </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Card Notepad Notes
+            <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+              Notepad Description / Instructions
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Add key deliverables, acceptance criteria, or team context..."
+              value={taskDesc}
+              onChange={(e) => setTaskDesc(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-900 transition-all shadow-xs resize-none"
+            />
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              className="w-full py-3 rounded-full bg-slate-950 text-white font-black text-xs hover:bg-slate-800 shadow-md transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Create Sprint Card</span>
+              <Plus className="w-4 h-4 text-lime-400" />
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* 2. Sticky Memo Form */}
+      {activeType === 'note' && (
+        <form onSubmit={handleCreateNote} className="space-y-3.5">
+          <div>
+            <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+              Memo Subject
+            </label>
+            <input
+              type="text"
+              required
+              autoFocus
+              placeholder="e.g. Design Critique Notes & Sprint Goals"
+              value={noteTitle}
+              onChange={(e) => setNoteTitle(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-900 transition-all shadow-xs"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+                Note Color
+              </label>
+              <div className="flex items-center gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-200">
+                {(['yellow', 'mint', 'lavender', 'sky', 'peach'] as StickyNoteColor[]).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setNoteColor(c)}
+                    className={`w-5 h-5 rounded-full border border-slate-300 transition-transform cursor-pointer ${
+                      c === 'yellow' ? 'bg-amber-100' : c === 'mint' ? 'bg-emerald-100' : c === 'lavender' ? 'bg-purple-100' : c === 'sky' ? 'bg-sky-100' : 'bg-rose-100'
+                    } ${noteColor === c ? 'ring-2 ring-slate-950 scale-110 shadow-xs' : 'opacity-60 hover:opacity-100'}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+                Attach Diagram
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={(e) => handleImagePick(e, 'note')}
+              />
+              {noteImage ? (
+                <div className="relative rounded-xl overflow-hidden border border-slate-200 h-10 flex items-center justify-between p-1 bg-slate-50">
+                  <img src={noteImage} alt="Note Attachment" className="w-12 h-full object-cover rounded-lg" />
+                  <span className="text-[10px] font-bold text-slate-600">Attached</span>
+                  <button
+                    type="button"
+                    onClick={() => setNoteImage('')}
+                    className="p-1 bg-rose-100 text-rose-700 rounded-lg hover:bg-rose-200 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-300 text-xs font-bold text-slate-600 hover:border-slate-400 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Upload Sketch</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+              Memo Notes & Scratchpad
             </label>
             <textarea
               rows={3}
-              placeholder="Add details, notes, or checklist items..."
-              value={taskDesc}
-              onChange={(e) => setTaskDesc(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-
-          <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={closeQuickAction}
-              className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-full bg-slate-950 text-white text-xs font-bold shadow-md hover:bg-slate-800 active:scale-95 transition-all"
-            >
-              Create Card
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Sticky Note Form */}
-      {activeType === 'note' && (
-        <form onSubmit={handleCreateNote} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Memo Title
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. 💡 Marketing Sprint Priorities"
-              value={noteTitle}
-              onChange={(e) => setNoteTitle(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Sticky Note Color
-            </label>
-            <div className="flex items-center gap-2">
-              {(['yellow', 'mint', 'lavender', 'sky', 'peach'] as StickyNoteColor[]).map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setNoteColor(c)}
-                  className={`w-7 h-7 rounded-full border-2 transition-transform ${
-                    c === 'yellow'
-                      ? 'bg-amber-100 border-amber-300'
-                      : c === 'mint'
-                      ? 'bg-emerald-100 border-emerald-300'
-                      : c === 'lavender'
-                      ? 'bg-purple-100 border-purple-300'
-                      : c === 'sky'
-                      ? 'bg-sky-100 border-sky-300'
-                      : 'bg-rose-100 border-rose-300'
-                  } ${noteColor === c ? 'scale-125 ring-2 ring-slate-900' : 'hover:scale-110'}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Memo Content
-            </label>
-            <textarea
-              rows={4}
-              placeholder="Write your quick thoughts, action items, or reminders..."
+              placeholder="Type team ideas, meeting minutes, architecture sketches..."
               value={noteContent}
               onChange={(e) => setNoteContent(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-900 transition-all shadow-xs resize-none"
             />
           </div>
 
-          <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={closeQuickAction}
-              className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800"
-            >
-              Cancel
-            </button>
+          <div className="pt-2">
             <button
               type="submit"
-              className="px-5 py-2 rounded-full bg-slate-950 text-white text-xs font-bold shadow-md hover:bg-slate-800 active:scale-95 transition-all"
+              className="w-full py-3 rounded-full bg-slate-950 text-white font-black text-xs hover:bg-slate-800 shadow-md transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
             >
-              Post Memo
+              <span>Post Sticky Memo</span>
+              <Plus className="w-4 h-4 text-lime-400" />
             </button>
           </div>
         </form>
       )}
 
-      {/* Expense (Cashflow IN & OUT) Form */}
+      {/* 3. Cashflow IN / OUT Form */}
       {activeType === 'expense' && (
-        <form onSubmit={handleCreateExpense} className="space-y-4">
-          {/* Flow Type Toggle (Money IN vs Money OUT) */}
+        <form onSubmit={handleCreateExpense} className="space-y-3.5">
+          {/* Flow Selector */}
           <div>
-            <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
-              Flow Direction
+            <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+              Transaction Flow
             </label>
-            <div className="flex items-center gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setExpType('IN');
-                  setExpCategory('Income / Funding');
-                }}
-                className={`flex-1 py-2 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all ${
+                onClick={() => setExpType('IN')}
+                className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   expType === 'IN'
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'bg-emerald-50 text-emerald-900 border border-emerald-200 hover:bg-emerald-100'
                 }`}
               >
-                <ArrowDownLeft className="w-3.5 h-3.5" />
-                <span>Money IN (Income / Advance)</span>
+                <ArrowDownLeft className="w-4 h-4" />
+                <span>+ Money IN (Retainer / Funding)</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => {
-                  setExpType('OUT');
-                  setExpCategory('Software & AI');
-                }}
-                className={`flex-1 py-2 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all ${
+                onClick={() => setExpType('OUT')}
+                className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   expType === 'OUT'
-                    ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    ? 'bg-rose-600 text-white shadow-md'
+                    : 'bg-rose-50 text-rose-900 border border-rose-200 hover:bg-rose-100'
                 }`}
               >
-                <ArrowUpRight className="w-3.5 h-3.5" />
-                <span>Money OUT (Expense / Bill)</span>
+                <ArrowUpRight className="w-4 h-4" />
+                <span>- Money OUT (Operational Cost)</span>
               </button>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Transaction Title / Description
+            <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+              Description / Vendor
             </label>
             <input
               type="text"
               required
-              placeholder={expType === 'IN' ? 'e.g. Client Retainer Advance Payment' : 'e.g. AWS & Dedicated Database Hosting'}
+              autoFocus
+              placeholder={expType === 'IN' ? 'e.g. Apex Client Monthly Retainer' : 'e.g. Supabase Pro Subscription'}
               value={expTitle}
               onChange={(e) => setExpTitle(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:border-indigo-500"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-900 transition-all shadow-xs"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
-                Amount (₹)
+              <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+                Amount in Rupees (₹)
               </label>
               <div className="relative">
-                <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-400">₹</span>
+                <span className="absolute left-3 top-2.5 text-xs font-bold font-mono text-slate-400">₹</span>
                 <input
                   type="number"
-                  step="1"
+                  step="any"
+                  min="0"
                   required
-                  placeholder="50000"
+                  placeholder="e.g. 15000"
                   value={expAmount}
                   onChange={(e) => setExpAmount(e.target.value)}
-                  className="w-full pl-6 pr-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none"
+                  className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-900 transition-all shadow-xs"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
+              <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
                 Category
               </label>
               <select
                 value={expCategory}
                 onChange={(e) => setExpCategory(e.target.value as ExpenseCategory)}
-                className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none"
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:bg-white focus:border-slate-900 cursor-pointer shadow-xs"
               >
                 {expType === 'IN' ? (
                   <>
                     <option value="Income / Funding">Income / Funding</option>
-                    <option value="Client Payout">Client Payout</option>
-                    <option value="Miscellaneous">Miscellaneous</option>
+                    <option value="Client Payout">Client Retainer</option>
                   </>
                 ) : (
                   <>
@@ -502,19 +555,19 @@ export function QuickActionModal() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
-                Payment Method
+              <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+                Payment Channel
               </label>
               <select
                 value={expMethod}
                 onChange={(e) => setExpMethod(e.target.value as any)}
-                className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none"
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:bg-white focus:border-slate-900 cursor-pointer shadow-xs"
               >
                 <option value="UPI / GPay">UPI / GPay</option>
                 <option value="Corporate Card">Corporate Card</option>
-                <option value="Wire Transfer">Wire Transfer</option>
+                <option value="Wire Transfer">Wire Transfer / NEFT</option>
                 <option value="NetBanking">NetBanking</option>
                 <option value="Razorpay / Stripe">Razorpay / Stripe</option>
                 <option value="Apple Pay">Apple Pay</option>
@@ -522,23 +575,24 @@ export function QuickActionModal() {
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
-                Attach Receipt / Invoice
+              <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">
+                Attach Invoice / Receipt
               </label>
               <input
                 type="file"
                 accept="image/*"
                 className="hidden"
-                id="receipt-file-input"
+                ref={fileInputRef}
                 onChange={(e) => handleImagePick(e, 'expense')}
               />
               {receiptImage ? (
-                <div className="relative rounded-lg overflow-hidden border border-slate-200 h-8 flex items-center px-2 bg-slate-50 text-[10px] text-slate-700 font-bold">
-                  <span className="truncate">Receipt Attached</span>
+                <div className="relative rounded-xl overflow-hidden border border-slate-200 h-10 flex items-center justify-between p-1 bg-slate-50">
+                  <img src={receiptImage} alt="Receipt" className="w-12 h-full object-cover rounded-lg" />
+                  <span className="text-[10px] font-bold text-slate-600">Attached</span>
                   <button
                     type="button"
                     onClick={() => setReceiptImage('')}
-                    className="ml-auto text-slate-400 hover:text-rose-600"
+                    className="p-1 bg-rose-100 text-rose-700 rounded-lg hover:bg-rose-200 cursor-pointer"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -546,29 +600,25 @@ export function QuickActionModal() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => document.getElementById('receipt-file-input')?.click()}
-                  className="w-full py-1.5 rounded-xl border border-dashed border-slate-300 text-xs font-bold text-slate-600 hover:border-slate-400 flex items-center justify-center gap-1 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-300 text-xs font-bold text-slate-600 hover:border-slate-400 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Upload className="w-3 h-3" />
+                  <Upload className="w-3.5 h-3.5 text-slate-400" />
                   <span>Upload Receipt</span>
                 </button>
               )}
             </div>
           </div>
 
-          <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={closeQuickAction}
-              className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800"
-            >
-              Cancel
-            </button>
+          <div className="pt-2">
             <button
               type="submit"
-              className="px-5 py-2 rounded-full bg-slate-950 text-white text-xs font-bold shadow-md hover:bg-slate-800 active:scale-95 transition-all"
+              className={`w-full py-3 rounded-full text-white font-black text-xs shadow-md transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 ${
+                expType === 'IN' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-950 hover:bg-slate-800'
+              }`}
             >
-              Log Transaction
+              <span>{expType === 'IN' ? 'Record Inflow (+₹)' : 'Record Outflow (-₹)'}</span>
+              <Plus className="w-4 h-4 text-lime-400" />
             </button>
           </div>
         </form>

@@ -64,29 +64,29 @@ export function CreateWorkspaceModal({ isOpen, onClose }: CreateWorkspaceModalPr
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
-              Total Capital ($)
+              Total Capital (₹)
             </label>
             <input
               type="number"
               min="0"
-              step="1000"
+              step="any"
               value={capital}
               onChange={(e) => setCapital(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono font-bold focus:outline-none"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono font-bold focus:outline-none focus:bg-white focus:border-slate-900 shadow-xs"
             />
           </div>
 
           <div>
             <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
-              Monthly Budget ($)
+              Monthly Budget (₹)
             </label>
             <input
               type="number"
               min="0"
-              step="500"
+              step="any"
               value={monthlyBudget}
               onChange={(e) => setMonthlyBudget(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono font-bold focus:outline-none"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono font-bold focus:outline-none focus:bg-white focus:border-slate-900 shadow-xs"
             />
           </div>
         </div>
