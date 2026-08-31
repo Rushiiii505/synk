@@ -1,47 +1,45 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Task, TrelloList, CardColorLabel } from '@/types';
 import { useWorkspace } from '@/context/WorkspaceContext';
-import { useAuth } from '@/context/AuthContext';
-import { UserAvatar } from '@/components/ui/UserAvatar';
-import { TrelloCardModal } from './TrelloCardModal';
+import { Task, TaskStatus, CardColorLabel } from '@/types';
 import {
   Plus,
-  Clock,
-  CheckSquare,
+  X,
   Search,
-  Trash2,
-  Image as ImageIcon,
+  CheckSquare,
+  Clock,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  ArrowRightLeft,
 } from 'lucide-react';
+import { TrelloCardModal } from './TrelloCardModal';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { formatCurrency, getDaysRemaining } from '@/lib/utils';
 
 export function TrelloBoard() {
   const {
-    trelloLists,
-    addTrelloList,
-    deleteTrelloList,
     tasks,
     addTask,
+    updateTask,
+    deleteTask,
     moveTaskToList,
-    openQuickAction,
+    trelloLists,
+    addTrelloList,
   } = useWorkspace();
-  const { currentUser } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Quick Inline Add Card per list
+  // Quick inline add card state
   const [activeAddListId, setActiveAddListId] = useState<string | null>(null);
   const [newCardTitle, setNewCardTitle] = useState('');
   const [newCardBudget, setNewCardBudget] = useState('');
+  const [newCardLabel, setNewCardLabel] = useState<CardColorLabel>('lime');
 
-  // Quick Add List State
-  const [isAddingList, setIsAddingList] = useState(false);
-  const [newListTitle, setNewListTitle] = useState('');
-
-  // Drag and Drop
+  // Drag and drop state
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverListId, setDragOverListId] = useState<string | null>(null);
 
@@ -52,34 +50,40 @@ export function TrelloBoard() {
 
   const handleDragOver = (e: React.DragEvent, listId: string) => {
     e.preventDefault();
-    setDragOverListId(listId);
+    if (dragOverListId !== listId) {
+      setDragOverListId(listId);
+    }
   };
 
-  const handleDrop = (e: React.DragEvent, listId: string) => {
+  const handleDrop = (e: React.DragEvent, targetListId: string) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData('text/plain') || draggedTaskId;
     if (taskId) {
-      moveTaskToList(taskId, listId);
+      const targetList = trelloLists.find((l) => l.id === targetListId);
+      moveTaskToList(taskId, targetListId, targetList?.title);
     }
     setDraggedTaskId(null);
     setDragOverListId(null);
   };
 
-  const handleCreateInlineCard = (listId: string) => {
+  const handleInlineAddCard = (listId: string) => {
     if (!newCardTitle.trim()) return;
+
+    const targetList = trelloLists.find((l) => l.id === listId);
 
     addTask({
       title: newCardTitle.trim(),
       description: '',
+      status: (targetList?.title as TaskStatus) || 'In Progress',
       listId,
-      status: trelloLists.find((l) => l.id === listId)?.title || 'In Progress',
-      priority: 'High',
-      colorLabel: 'lime',
+      priority: 'Medium',
+      assignees: [],
+      tags: ['Sprint'],
+      subtasks: [],
+      dueDate: new Date(Date.now() + 7 * 86400000).toISOString(),
+      colorLabel: newCardLabel,
       budgetAmount: parseFloat(newCardBudget) || undefined,
-      assignees: currentUser ? [currentUser] : [],
-      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-      tags: ['Trello', 'Deliverable'],
-      subtasks: [{ id: `st_${Date.now()}`, title: 'Initial deliverable review', completed: false }],
+      notepadNotes: '',
     });
 
     setNewCardTitle('');
@@ -87,85 +91,84 @@ export function TrelloBoard() {
     setActiveAddListId(null);
   };
 
-  const handleCreateList = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newListTitle.trim()) return;
-    addTrelloList(newListTitle.trim());
-    setNewListTitle('');
-    setIsAddingList(false);
-  };
+  const filteredTasks = tasks.filter((t) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      t.title.toLowerCase().includes(q) ||
+      t.tags.some((tag) => tag.toLowerCase().includes(q)) ||
+      (t.notepadNotes && t.notepadNotes.toLowerCase().includes(q)) ||
+      (t.description && t.description.toLowerCase().includes(q))
+    );
+  });
 
   const colorPills: Record<CardColorLabel, string> = {
     lime: 'bg-lime-400',
-    purple: 'bg-purple-500',
-    blue: 'bg-blue-500',
+    purple: 'bg-purple-400',
+    blue: 'bg-sky-400',
     amber: 'bg-amber-400',
-    rose: 'bg-rose-500',
+    rose: 'bg-rose-400',
     slate: 'bg-slate-400',
   };
 
-  const filteredTasks = tasks.filter(
-    (t) =>
-      !searchQuery ||
-      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.tags.some((tg) => tg.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
   return (
-    <div id="trello-section" className="space-y-3.5 select-none">
-      {/* Trello Header Banner */}
-      <div className="p-3.5 sm:px-5 sm:py-3 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-xl bg-lime-400 flex items-center justify-center font-black text-slate-950 text-xs shadow-xs">
+    <div id="trello-board" className="space-y-3 select-none">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
             📋
           </div>
           <div>
-            <h2 className="text-sm font-extrabold text-slate-900 leading-tight">
-              Collaborative Sprint Trello Board
+            <h2 className="text-sm sm:text-base font-black tracking-tight text-slate-900 flex items-center gap-2">
+              <span>Agile Sprint Board</span>
+              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                {tasks.length} Cards
+              </span>
             </h2>
-            <p className="text-[10px] text-slate-400">
-              Drag & drop cards across agile sprint columns with budget tags in ₹
-            </p>
           </div>
         </div>
 
-        {/* Search & Add Card button */}
-        <div className="flex items-center gap-2.5">
-          <div className="relative min-w-[180px] max-w-xs">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2" />
+        {/* Search & Actions */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 sm:w-56">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search board cards..."
+              placeholder="Search cards..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1 bg-slate-50 border border-slate-200 rounded-full text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 font-medium"
+              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 shadow-xs"
             />
           </div>
 
           <button
-            onClick={() => openQuickAction('task')}
-            className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-slate-950 text-white font-bold text-xs hover:bg-slate-800 transition-all shadow-xs active:scale-95 cursor-pointer"
+            onClick={() => setActiveAddListId(trelloLists[0]?.id || 'list_backlog')}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-lime-400" />
             <span>Add Card</span>
           </button>
         </div>
       </div>
 
       {/* Horizontal Scrollable Trello Columns with Smooth Mobile Swipe */}
-      <div className="flex gap-3 overflow-x-auto pb-2 pt-0.5 items-start touch-pan-x snap-x snap-mandatory -mx-2 px-2 sm:mx-0 sm:px-0">
-        {trelloLists.map((list) => {
+      <div className="flex gap-3 overflow-x-auto pb-3 pt-0.5 items-start touch-pan-x snap-x snap-mandatory -mx-2 px-2 sm:mx-0 sm:px-0">
+        {trelloLists.map((list, listIndex) => {
           const listTasks = filteredTasks.filter(
             (t) => t.listId === list.id || t.status === list.title
           );
           const isOver = dragOverListId === list.id;
+
+          const hasPrev = listIndex > 0;
+          const hasNext = listIndex < trelloLists.length - 1;
 
           return (
             <div
               key={list.id}
               onDragOver={(e) => handleDragOver(e, list.id)}
               onDrop={(e) => handleDrop(e, list.id)}
-              className={`w-[80vw] max-w-[300px] sm:w-76 shrink-0 snap-center flex flex-col rounded-2xl bg-white border transition-all duration-150 shadow-xs ${
+              className={`w-[82vw] max-w-[290px] sm:w-76 shrink-0 snap-center flex flex-col rounded-2xl bg-white border transition-all duration-150 shadow-xs ${
                 isOver ? 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50/20' : 'border-slate-200/90'
               }`}
             >
@@ -178,66 +181,76 @@ export function TrelloBoard() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setActiveAddListId(activeAddListId === list.id ? null : list.id)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                    title="Add a card to this list"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                  {trelloLists.length > 3 && (
-                    <button
-                      onClick={() => deleteTrelloList(list.id)}
-                      className="p-1 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                      title="Delete List"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
+                <button
+                  onClick={() => setActiveAddListId(list.id)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                  title="Add card to list"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
               </div>
 
-              {/* Card List Area */}
-              <div className="flex-1 p-2.5 space-y-2 max-h-[480px] overflow-y-auto">
-                {/* Inline Card Creator Form */}
+              {/* Cards Container */}
+              <div className="p-2 space-y-2 max-h-[480px] overflow-y-auto">
+                {/* Inline Add Card Composer */}
                 {activeAddListId === list.id && (
-                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-indigo-200 shadow-xs space-y-2 animate-in fade-in zoom-in-95">
                     <input
                       type="text"
                       autoFocus
-                      placeholder="Enter a title for this card..."
+                      placeholder="Card title / task name..."
                       value={newCardTitle}
                       onChange={(e) => setNewCardTitle(e.target.value)}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleInlineAddCard(list.id);
+                        if (e.key === 'Escape') setActiveAddListId(null);
+                      }}
+                      className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
                     />
-                    <div className="flex items-center gap-2">
-                      <div className="relative w-28">
-                        <span className="absolute left-2 top-1 text-xs font-bold text-slate-400">₹</span>
+
+                    {/* Color Label Picker */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        {(['lime', 'purple', 'blue', 'amber', 'rose'] as CardColorLabel[]).map(
+                          (c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setNewCardLabel(c)}
+                              className={`w-4 h-4 rounded-full ${colorPills[c]} transition-transform ${
+                                newCardLabel === c ? 'ring-2 ring-slate-950 scale-110' : 'opacity-70'
+                              }`}
+                            />
+                          )
+                        )}
+                      </div>
+
+                      {/* Optional Budget in INR */}
+                      <div className="flex items-center gap-1 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                        <span className="text-[10px] font-mono text-slate-400">₹</span>
                         <input
                           type="number"
                           placeholder="Budget"
                           value={newCardBudget}
                           onChange={(e) => setNewCardBudget(e.target.value)}
-                          className="w-full pl-5 pr-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none"
+                          className="w-14 text-[10px] font-mono font-bold focus:outline-none text-slate-800"
                         />
                       </div>
-                      <div className="flex items-center gap-1.5 ml-auto">
-                        <button
-                          type="button"
-                          onClick={() => setActiveAddListId(null)}
-                          className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-800"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCreateInlineCard(list.id)}
-                          className="px-3 py-1 bg-slate-950 text-white rounded-full text-xs font-bold shadow-xs"
-                        >
-                          Add
-                        </button>
-                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        onClick={() => handleInlineAddCard(list.id)}
+                        className="px-3 py-1 bg-slate-950 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors cursor-pointer"
+                      >
+                        Add Card
+                      </button>
+                      <button
+                        onClick={() => setActiveAddListId(null)}
+                        className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 )}
@@ -255,26 +268,57 @@ export function TrelloBoard() {
                         setSelectedTask(task);
                         setIsModalOpen(true);
                       }}
-                      className="p-3 rounded-2xl bg-white border border-slate-150 hover:border-indigo-300 hover:shadow-md transition-all cursor-grab active:cursor-grabbing group relative overflow-hidden"
+                      className="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden space-y-2"
                     >
+                      {/* Top Label & Quick Shift Arrows */}
+                      <div className="flex items-center justify-between">
+                        {task.colorLabel ? (
+                          <div className={`w-8 h-1.5 rounded-full ${colorPills[task.colorLabel]}`} />
+                        ) : (
+                          <div />
+                        )}
+
+                        {/* Mobile & Touch Quick Shift Arrows */}
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          {hasPrev && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const prevList = trelloLists[listIndex - 1];
+                                moveTaskToList(task.id, prevList.id, prevList.title);
+                              }}
+                              className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all active:scale-95 cursor-pointer"
+                              title={`Move to ${trelloLists[listIndex - 1].title}`}
+                            >
+                              <ChevronLeft className="w-3 h-3" />
+                            </button>
+                          )}
+                          {hasNext && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const nextList = trelloLists[listIndex + 1];
+                                moveTaskToList(task.id, nextList.id, nextList.title);
+                              }}
+                              className="px-1.5 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold transition-all active:scale-95 flex items-center gap-0.5 cursor-pointer"
+                              title={`Move to ${trelloLists[listIndex + 1].title}`}
+                            >
+                              <span className="text-[9px] hidden sm:inline">{trelloLists[listIndex + 1].title}</span>
+                              <ChevronRight className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
                       {/* Attached Cover Image */}
                       {task.imageUrl && (
-                        <div className="w-full h-24 rounded-xl overflow-hidden mb-2.5 border border-slate-100">
+                        <div className="w-full h-24 rounded-xl overflow-hidden mb-1 border border-slate-100">
                           <img
                             src={task.imageUrl}
                             alt={task.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         </div>
-                      )}
-
-                      {/* Top Label Bar */}
-                      {task.colorLabel && (
-                        <div
-                          className={`w-8 h-1.5 rounded-full mb-2 ${
-                            colorPills[task.colorLabel]
-                          }`}
-                        />
                       )}
 
                       {/* Card Title */}
@@ -284,13 +328,13 @@ export function TrelloBoard() {
 
                       {/* Card Notepad Notes Snippet */}
                       {(task.notepadNotes || task.description) && (
-                        <p className="text-[11px] text-slate-500 line-clamp-2 mt-1 leading-relaxed">
+                        <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
                           {task.notepadNotes || task.description}
                         </p>
                       )}
 
                       {/* Bottom Row: Budget Chip in ₹, Checklist Count & Avatars */}
-                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {/* Budget / FinTech Tag in INR */}
                           {task.budgetAmount !== undefined && (
@@ -359,57 +403,16 @@ export function TrelloBoard() {
                     className="w-full py-1 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-50 text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3 h-3" />
-                    <span>Add card</span>
+                    <span>Add another card</span>
                   </button>
                 </div>
               )}
             </div>
           );
         })}
-
-        {/* Add Another List */}
-        <div className="w-76 sm:w-80 shrink-0">
-          {isAddingList ? (
-            <form
-              onSubmit={handleCreateList}
-              className="p-4 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2 animate-in fade-in"
-            >
-              <input
-                type="text"
-                autoFocus
-                placeholder="Enter list title..."
-                value={newListTitle}
-                onChange={(e) => setNewListTitle(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 rounded-full bg-slate-950 text-white text-xs font-bold shadow-xs"
-                >
-                  Add List
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAddingList(false)}
-                  className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              onClick={() => setIsAddingList(true)}
-              className="w-full py-3.5 rounded-3xl bg-white hover:bg-slate-50 border border-dashed border-slate-200 text-slate-600 hover:text-slate-900 text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all shadow-xs"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add another list</span>
-            </button>
-          )}
-        </div>
       </div>
 
+      {/* Trello Card Detail / Edit Modal */}
       <TrelloCardModal
         task={selectedTask}
         isOpen={isModalOpen}

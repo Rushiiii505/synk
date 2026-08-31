@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import {
   Workspace,
   Task,
@@ -14,6 +14,7 @@ import {
   Doc,
 } from '@/types';
 import { useAuth } from './AuthContext';
+import { supabase } from '@/lib/supabase';
 import { generateId, triggerConfetti } from '@/lib/utils';
 
 export type NavigationTab = 'all' | 'trello' | 'notepad' | 'finance' | 'team';
@@ -97,6 +98,9 @@ interface WorkspaceContextType {
   addToast: (title: string, description?: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
   removeToast: (id: string) => void;
 
+  // Cloud Sync
+  isCloudSynced: boolean;
+
   // Backward compatibility
   docs: Doc[];
   selectedDocId: string | null;
@@ -111,6 +115,8 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuth();
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isCloudSynced, setIsCloudSynced] = useState(false);
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>(() => {
     if (typeof window !== 'undefined') {
@@ -180,7 +186,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [quickActionType, setQuickActionType] = useState<'task' | 'note' | 'expense' | 'doc' | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // Persistence
+  // Local Persistence
   useEffect(() => {
     localStorage.setItem('synk_clean_workspaces', JSON.stringify(workspaces));
   }, [workspaces]);
@@ -214,20 +220,91 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('synk_clean_expenses', JSON.stringify(allExpenses));
   }, [allExpenses]);
 
-  // Load user's stored workspace IDs when user logs in
+  // 1. PULL CLOUD SYNC: Pull workspaces, tasks, notes, expenses from Supabase Cloud on login / device change
   useEffect(() => {
-    if (currentUser?.email) {
-      const saved = localStorage.getItem(`synk_user_ws_ids_${currentUser.email.toLowerCase()}`);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            setUserWorkspaceIds(parsed);
+    const syncFromCloud = async () => {
+      if (!currentUser) return;
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data.user?.user_metadata) {
+          const meta = data.user.user_metadata;
+          if (meta.synk_cloud_workspaces && Array.isArray(meta.synk_cloud_workspaces) && meta.synk_cloud_workspaces.length > 0) {
+            setWorkspaces((prev) => {
+              const map = new Map<string, Workspace>();
+              prev.forEach((w) => map.set(w.id, w));
+              meta.synk_cloud_workspaces.forEach((w: Workspace) => map.set(w.id, w));
+              return Array.from(map.values());
+            });
           }
-        } catch {}
+          if (meta.synk_cloud_user_ws_ids && Array.isArray(meta.synk_cloud_user_ws_ids) && meta.synk_cloud_user_ws_ids.length > 0) {
+            setUserWorkspaceIds((prev) => Array.from(new Set([...prev, ...meta.synk_cloud_user_ws_ids])));
+          }
+          if (meta.synk_cloud_current_ws_id) {
+            setCurrentWorkspaceId((prev) => prev || meta.synk_cloud_current_ws_id);
+          }
+          if (meta.synk_cloud_tasks && Array.isArray(meta.synk_cloud_tasks) && meta.synk_cloud_tasks.length > 0) {
+            setAllTasks((prev) => {
+              const map = new Map<string, Task>();
+              prev.forEach((t) => map.set(t.id, t));
+              meta.synk_cloud_tasks.forEach((t: Task) => map.set(t.id, t));
+              return Array.from(map.values());
+            });
+          }
+          if (meta.synk_cloud_sticky_notes && Array.isArray(meta.synk_cloud_sticky_notes) && meta.synk_cloud_sticky_notes.length > 0) {
+            setAllStickyNotes((prev) => {
+              const map = new Map<string, StickyNote>();
+              prev.forEach((n) => map.set(n.id, n));
+              meta.synk_cloud_sticky_notes.forEach((n: StickyNote) => map.set(n.id, n));
+              return Array.from(map.values());
+            });
+          }
+          if (meta.synk_cloud_expenses && Array.isArray(meta.synk_cloud_expenses) && meta.synk_cloud_expenses.length > 0) {
+            setAllExpenses((prev) => {
+              const map = new Map<string, Expense>();
+              prev.forEach((e) => map.set(e.id, e));
+              meta.synk_cloud_expenses.forEach((e: Expense) => map.set(e.id, e));
+              return Array.from(map.values());
+            });
+          }
+          setIsCloudSynced(true);
+        }
+      } catch (err) {
+        console.warn('Cloud sync load warning:', err);
       }
+    };
+    syncFromCloud();
+  }, [currentUser]);
+
+  // 2. PUSH CLOUD SYNC: Automatically persist updates to Supabase User Metadata so Phone & Laptop stay synced
+  useEffect(() => {
+    if (!currentUser) return;
+
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
     }
-  }, [currentUser?.email]);
+
+    syncTimeoutRef.current = setTimeout(async () => {
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            synk_cloud_workspaces: workspaces,
+            synk_cloud_user_ws_ids: userWorkspaceIds,
+            synk_cloud_current_ws_id: currentWorkspaceId,
+            synk_cloud_tasks: allTasks,
+            synk_cloud_sticky_notes: allStickyNotes,
+            synk_cloud_expenses: allExpenses,
+          },
+        });
+        setIsCloudSynced(true);
+      } catch (err) {
+        console.warn('Cloud sync push warning:', err);
+      }
+    }, 800);
+
+    return () => {
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    };
+  }, [workspaces, userWorkspaceIds, currentWorkspaceId, allTasks, allStickyNotes, allExpenses, currentUser]);
 
   const userWorkspaces = useMemo(() => {
     if (userWorkspaceIds.length === 0) {
@@ -591,6 +668,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         toasts,
         addToast,
         removeToast,
+        isCloudSynced,
 
         // Docs backward compatibility
         docs: [],

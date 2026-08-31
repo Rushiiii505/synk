@@ -10,10 +10,8 @@ import { TrelloBoard } from '@/components/trello/TrelloBoard';
 import { TeamNotepad } from '@/components/notepad/TeamNotepad';
 import { FinanceTab } from '@/components/finance/FinanceTab';
 import { TeamTab } from '@/components/team/TeamTab';
-import { ScrollReveal } from '@/components/ui/ScrollReveal';
 import { QuickActionModal } from '@/components/layout/QuickActionModal';
 import { CommandPalette } from '@/components/layout/CommandPalette';
-import { Sparkles } from 'lucide-react';
 
 export default function Home() {
   const { isAuthenticated, currentUser } = useAuth();
@@ -47,24 +45,6 @@ export default function Home() {
 
         {/* 5. Team Directory & Project Treasury Limits */}
         <TeamTab />
-
-        {/* 6. React Bits ScrollReveal Manifesto Deck */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-slate-950 text-white border border-slate-800 shadow-xl text-center select-none space-y-2 mt-4">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-lime-400/10 text-lime-400 font-mono text-xs font-bold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5 text-lime-400" />
-            <span>Synchronized Team Operations</span>
-          </div>
-
-          <ScrollReveal
-            baseOpacity={0.15}
-            enableBlur={true}
-            baseRotation={1.5}
-            blurStrength={4}
-            textClassName="text-white text-base sm:text-lg font-black max-w-2xl mx-auto leading-relaxed"
-          >
-            Synchronize high-velocity sprint execution with real-time treasury cashflows in Indian Rupees. Zero friction, complete collaborative alignment.
-          </ScrollReveal>
-        </div>
       </main>
 
       {/* Global Modals */}

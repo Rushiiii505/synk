@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { StickyNote, StickyNoteColor } from '@/types';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useAuth } from '@/context/AuthContext';
@@ -83,11 +83,19 @@ export function TeamNotepad() {
   const [activeUploadNoteId, setActiveUploadNoteId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Master Shared Scratchpad text state
-  const [scratchpadContent, setScratchpadContent] = useState(
-    `# 🚀 synk Operations Scratchpad\n\n- [x] Sprint backlog prioritized on Trello\n- [x] Apple iCloud subscription card verified (₹4,200/mo)\n- [x] Client Retainer recorded (+₹3,50,000 IN)\n- [ ] Finalize treasury allocation deck\n\n> "Keep everything collaborative, minimal, and fast."`
-  );
+  // Master Shared Scratchpad text state with persistence
+  const [scratchpadContent, setScratchpadContent] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('synk_scratchpad_text');
+      if (saved) return saved;
+    }
+    return `# 🚀 synk Operations Scratchpad\n\n- [x] Sprint backlog prioritized on Trello\n- [x] Client Retainer recorded (+₹3,50,000 IN)\n- [ ] Finalize treasury allocation deck\n\n> "Keep everything collaborative, minimal, and fast."`;
+  });
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('synk_scratchpad_text', scratchpadContent);
+  }, [scratchpadContent]);
 
   const filteredNotes = stickyNotes.filter((n) => {
     const matchesSearch =
@@ -130,27 +138,33 @@ export function TeamNotepad() {
   };
 
   return (
-    <div id="notepad-section" className="space-y-6 select-none">
+    <div id="notepad-section" className="space-y-4 select-none">
       {/* Top Section Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-lime-100 text-lime-800 text-xs font-extrabold uppercase tracking-wider mb-1">
-            <Sparkles className="w-3.5 h-3.5 text-lime-700" />
-            <span>Shared Team Scratchpad & Sticky Notes</span>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs">
+              📝
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-black tracking-tight text-slate-900 flex items-center gap-2">
+                <span>Team Notepad</span>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                  {stickyNotes.length} Memos
+                </span>
+              </h3>
+            </div>
           </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Collaborative Notepad
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Real-time sticky memos with image attachments, quick thoughts, and shared meeting scratchpads.
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Real-time sticky memos, image diagrams, and live shared scratchpads.
           </p>
         </div>
 
         <button
           onClick={() => handleCreateNewMemo('yellow')}
-          className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-slate-950 text-white font-bold text-xs hover:bg-slate-800 transition-all shadow-md active:scale-95 shrink-0"
+          className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-slate-950 text-white font-bold text-xs hover:bg-slate-800 transition-all shadow-xs active:scale-95 shrink-0 cursor-pointer"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-3.5 h-3.5 text-lime-400" />
           <span>+ Add Sticky Memo</span>
         </button>
       </div>
@@ -164,22 +178,22 @@ export function TeamNotepad() {
         onChange={handleNoteImageUpload}
       />
 
-      {/* 1. Master Live Collaborative Scratchpad Container */}
-      <div className="rounded-3xl p-6 bg-white border border-slate-150 shadow-xs space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+      {/* 1. Live Collaborative Scratchpad Container */}
+      <div className="rounded-2xl p-4 sm:p-5 bg-white border border-slate-200/90 shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
+            <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
               ⚡
             </div>
-            <span className="text-sm font-extrabold text-slate-900">Live synk Team Scratchpad</span>
+            <span className="text-xs font-extrabold text-slate-900">Live Team Scratchpad</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
-              Live Synced
+              Synced
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center -space-x-1.5 mr-2">
-              {users.slice(0, 4).map((u) => (
+            <div className="hidden sm:flex items-center -space-x-1.5 mr-2">
+              {users.slice(0, 3).map((u) => (
                 <UserAvatar
                   key={u.id}
                   name={u.name}
@@ -191,11 +205,11 @@ export function TeamNotepad() {
             </div>
             <button
               onClick={handleCopyScratchpad}
-              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors text-xs font-semibold flex items-center gap-1"
+              className="p-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors text-xs font-semibold flex items-center gap-1 cursor-pointer"
               title="Copy Scratchpad Content"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">Copy</span>
+              <span>Copy</span>
             </button>
           </div>
         </div>
@@ -213,27 +227,27 @@ export function TeamNotepad() {
       {/* 2. Sticky Memos Board Section */}
       <div className="space-y-3">
         {/* Filter / Color Selector */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
-              Team Sticky Memos ({filteredNotes.length})
-            </h3>
+            <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+              Sticky Memos ({filteredNotes.length})
+            </h4>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="relative min-w-[180px] max-w-xs">
+            <div className="relative min-w-[160px] max-w-xs">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2" />
               <input
                 type="text"
                 placeholder="Search memos..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1 bg-white border border-slate-200 rounded-full text-xs text-slate-800 placeholder-slate-400 focus:outline-none font-medium"
+                className="w-full pl-8 pr-3 py-1 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none font-medium shadow-xs"
               />
             </div>
 
             {/* Quick Color Buttons to add note */}
-            <div className="flex items-center gap-1.5 p-1 bg-white rounded-full border border-slate-200 shadow-xs">
+            <div className="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-slate-200 shadow-xs">
               {(['yellow', 'mint', 'lavender', 'sky', 'peach'] as StickyNoteColor[]).map((c) => (
                 <button
                   key={c}
@@ -258,98 +272,116 @@ export function TeamNotepad() {
             <div className="space-y-0.5">
               <h4 className="text-xs font-bold text-slate-800">No team memos posted yet</h4>
               <p className="text-[10px] text-slate-400 max-w-sm mx-auto">
-                Capture quick meeting takeaways or sprint reminders on colorful sticky notes.
+                Post quick memos, architecture sketches, sprint reminders, or client briefs.
               </p>
             </div>
             <button
               onClick={() => handleCreateNewMemo('yellow')}
-              className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-slate-950 text-white text-xs font-bold hover:bg-slate-800 transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-slate-950 text-white text-xs font-bold hover:bg-slate-800 cursor-pointer"
             >
               <Plus className="w-3 h-3" />
-              <span>Post Sticky Memo</span>
+              <span>Post First Memo</span>
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {filteredNotes.map((note) => {
-              const styles = NOTE_COLORS[note.color] || NOTE_COLORS.yellow;
+              const theme = NOTE_COLORS[note.color] || NOTE_COLORS.yellow;
 
               return (
                 <div
                   key={note.id}
-                  className={`rounded-2xl p-3.5 border flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${styles.bg} ${styles.border} min-h-[160px] shadow-xs relative`}
+                  className={`p-3.5 rounded-2xl border ${theme.border} ${theme.bg} shadow-xs flex flex-col justify-between space-y-2.5 transition-all hover:shadow-md relative group`}
                 >
                   {/* Note Header */}
-                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-black/5">
+                  <div className="flex items-center justify-between gap-2">
                     <input
                       type="text"
                       value={note.title}
                       onChange={(e) => updateStickyNote(note.id, { title: e.target.value })}
-                      className="bg-transparent text-xs font-bold text-slate-900 focus:outline-none w-full truncate"
-                      placeholder="Note Title..."
+                      className={`text-xs font-extrabold ${theme.text} bg-transparent focus:outline-none border-b border-transparent focus:border-slate-400 w-full truncate`}
                     />
+
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => togglePinStickyNote(note.id)}
-                        className={`p-1 rounded-lg transition-colors ${
-                          note.isPinned ? 'text-slate-950 bg-black/10' : 'text-slate-400 hover:text-slate-900'
+                        className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                          note.isPinned
+                            ? 'text-amber-700 bg-amber-200/60'
+                            : 'text-slate-400 hover:text-slate-700 opacity-60 group-hover:opacity-100'
                         }`}
-                        title={note.isPinned ? 'Unpin memo' : 'Pin memo to top'}
+                        title={note.isPinned ? 'Unpin' : 'Pin to top'}
                       >
                         <Pin className="w-3 h-3" />
                       </button>
+
+                      <button
+                        onClick={() => {
+                          setActiveUploadNoteId(note.id);
+                          fileInputRef.current?.click();
+                        }}
+                        className="p-1 text-slate-400 hover:text-slate-700 opacity-60 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        title="Attach Diagram / Image"
+                      >
+                        <ImageIcon className="w-3 h-3" />
+                      </button>
+
                       <button
                         onClick={() => deleteStickyNote(note.id)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                        title="Delete memo"
+                        className="p-1 text-slate-400 hover:text-rose-600 opacity-60 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        title="Delete Memo"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Attached Image if exists */}
+                  {/* Attached Diagram / Screenshot */}
                   {note.imageUrl && (
-                    <div className="my-2 rounded-xl overflow-hidden max-h-32 border border-black/10">
-                      <img src={note.imageUrl} alt={note.title} className="w-full h-full object-cover" />
+                    <div className="relative w-full h-28 rounded-xl overflow-hidden border border-black/10 group/img">
+                      <img
+                        src={note.imageUrl}
+                        alt="Attached Diagram"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        onClick={() => updateStickyNote(note.id, { imageUrl: undefined })}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white hover:bg-black transition-colors"
+                        title="Remove Image"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
                   )}
 
-                  {/* Note Body Textarea */}
-                  <div className="flex-1 my-2">
-                    <textarea
-                      rows={4}
-                      value={note.content}
-                      onChange={(e) => updateStickyNote(note.id, { content: e.target.value })}
-                      placeholder="Write notes..."
-                      className="w-full bg-transparent text-xs text-slate-800 leading-relaxed focus:outline-none resize-none font-medium"
-                    />
-                  </div>
+                  {/* Note Content */}
+                  <textarea
+                    rows={4}
+                    value={note.content}
+                    onChange={(e) => updateStickyNote(note.id, { content: e.target.value })}
+                    className={`w-full bg-transparent text-xs ${theme.text} leading-relaxed focus:outline-none resize-none`}
+                  />
 
-                  {/* Note Footer: Color Selector & Author info */}
-                  <div className="pt-3 border-t border-black/5 flex items-center justify-between">
-                    {/* Color dots */}
+                  {/* Note Footer: Color picker & Author */}
+                  <div className="pt-2 border-t border-black/5 flex items-center justify-between text-[10px]">
                     <div className="flex items-center gap-1">
-                      {(['yellow', 'mint', 'lavender', 'sky', 'peach'] as StickyNoteColor[]).map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => updateStickyNote(note.id, { color: c })}
-                          className={`w-3.5 h-3.5 rounded-full border border-black/10 transition-transform ${
-                            NOTE_COLORS[c].bg
-                          } ${note.color === c ? 'scale-125 ring-1 ring-slate-900' : 'hover:scale-110'}`}
-                        />
-                      ))}
+                      {(['yellow', 'mint', 'lavender', 'sky', 'peach'] as StickyNoteColor[]).map(
+                        (c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => updateStickyNote(note.id, { color: c })}
+                            className={`w-3.5 h-3.5 rounded-full border border-black/10 transition-transform ${
+                              NOTE_COLORS[c].bg
+                            } ${note.color === c ? 'scale-125 ring-1 ring-slate-900' : 'opacity-60'}`}
+                          />
+                        )
+                      )}
                     </div>
 
-                    {/* Author avatar & time */}
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
-                      <UserAvatar
-                        name={note.author.name}
-                        email={note.author.email}
-                        size="xs"
-                        className="ring-1 ring-white"
-                      />
-                      <span>{formatRelativeTime(note.updatedAt)}</span>
+                    <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+                      <UserAvatar name={note.author.name} email={note.author.email} size="xs" />
+                      <span className="truncate max-w-[80px]">{note.author.name}</span>
                     </div>
                   </div>
                 </div>
