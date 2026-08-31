@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRightLeft,
+  Columns,
 } from 'lucide-react';
 import { TrelloCardModal } from './TrelloCardModal';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -32,6 +33,7 @@ export function TrelloBoard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [boardDensity, setBoardDensity] = useState<'compact' | 'standard' | 'spacious'>('standard');
 
   // Quick inline add card state
   const [activeAddListId, setActiveAddListId] = useState<string | null>(null);
@@ -129,9 +131,40 @@ export function TrelloBoard() {
           </div>
         </div>
 
-        {/* Search & Actions */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 sm:w-56">
+        {/* Column Width & Density Controls + Search & Actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Density Switcher */}
+          <div className="flex items-center p-0.5 bg-white rounded-xl border border-slate-200 shadow-xs text-[11px] font-bold">
+            <button
+              onClick={() => setBoardDensity('compact')}
+              className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
+                boardDensity === 'compact' ? 'bg-slate-950 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+              }`}
+              title="Compact 250px column width"
+            >
+              Compact
+            </button>
+            <button
+              onClick={() => setBoardDensity('standard')}
+              className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
+                boardDensity === 'standard' ? 'bg-slate-950 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+              }`}
+              title="Standard 300px column width"
+            >
+              Standard
+            </button>
+            <button
+              onClick={() => setBoardDensity('spacious')}
+              className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
+                boardDensity === 'spacious' ? 'bg-slate-950 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+              }`}
+              title="Spacious 360px column width"
+            >
+              Spacious
+            </button>
+          </div>
+
+          <div className="relative flex-1 sm:w-48">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
@@ -152,7 +185,7 @@ export function TrelloBoard() {
         </div>
       </div>
 
-      {/* Horizontal Scrollable Trello Columns with Smooth Mobile Swipe */}
+      {/* Horizontal Scrollable Trello Columns with Size Density */}
       <div className="flex gap-3 overflow-x-auto pb-3 pt-0.5 items-start touch-pan-x snap-x snap-mandatory -mx-2 px-2 sm:mx-0 sm:px-0">
         {trelloLists.map((list, listIndex) => {
           const listTasks = filteredTasks.filter(
@@ -163,12 +196,19 @@ export function TrelloBoard() {
           const hasPrev = listIndex > 0;
           const hasNext = listIndex < trelloLists.length - 1;
 
+          const columnWidthClass =
+            boardDensity === 'compact'
+              ? 'w-[75vw] max-w-[250px] sm:w-64'
+              : boardDensity === 'spacious'
+              ? 'w-[90vw] max-w-[360px] sm:w-92'
+              : 'w-[82vw] max-w-[290px] sm:w-76';
+
           return (
             <div
               key={list.id}
               onDragOver={(e) => handleDragOver(e, list.id)}
               onDrop={(e) => handleDrop(e, list.id)}
-              className={`w-[82vw] max-w-[290px] sm:w-76 shrink-0 snap-center flex flex-col rounded-2xl bg-white border transition-all duration-150 shadow-xs ${
+              className={`${columnWidthClass} shrink-0 snap-center flex flex-col rounded-2xl bg-white border transition-all duration-150 shadow-xs ${
                 isOver ? 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50/20' : 'border-slate-200/90'
               }`}
             >
@@ -191,7 +231,7 @@ export function TrelloBoard() {
               </div>
 
               {/* Cards Container */}
-              <div className="p-2 space-y-2 max-h-[480px] overflow-y-auto">
+              <div className="p-2 space-y-2 max-h-[520px] overflow-y-auto">
                 {/* Inline Add Card Composer */}
                 {activeAddListId === list.id && (
                   <div className="p-3 rounded-xl bg-slate-50 border border-indigo-200 shadow-xs space-y-2 animate-in fade-in zoom-in-95">
@@ -230,10 +270,12 @@ export function TrelloBoard() {
                         <span className="text-[10px] font-mono text-slate-400">₹</span>
                         <input
                           type="number"
+                          step="any"
+                          min="0"
                           placeholder="Budget"
                           value={newCardBudget}
                           onChange={(e) => setNewCardBudget(e.target.value)}
-                          className="w-14 text-[10px] font-mono font-bold focus:outline-none text-slate-800"
+                          className="w-16 text-[10px] font-mono font-bold focus:outline-none text-slate-800"
                         />
                       </div>
                     </div>
